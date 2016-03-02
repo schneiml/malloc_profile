@@ -8,14 +8,18 @@
 #include <sstream>
 #include <map>
 #include <regex>
+#include <thread>
+#include <mutex>
 
 class StackCollector {
     std::regex rx_trace = std::regex("(.*)\\((.+)\\+0x.*\\).*");
     std::map<std::string, int> all;
+    std::mutex map_mutex;
 
 public:
     void add_stackframe() {
         if (rand() % 1024 != 1) return;
+	std::lock_guard<std::mutex> lock(map_mutex);
         void *trace[16];
         char **messages = (char **)NULL;
         int i, trace_size = 0;
