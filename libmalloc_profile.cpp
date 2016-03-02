@@ -4,9 +4,10 @@
 #include <dlfcn.h>
 #include <signal.h>
 #include <execinfo.h>
-#include <regex>
 #include <cxxabi.h>
 #include <sstream>
+#include <map>
+#include <regex>
 
 class StackCollector {
     std::regex rx_trace = std::regex("(.*)\\((.+)\\+0x.*\\).*");
