@@ -7,6 +7,7 @@
 #include <cxxabi.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <sstream>
 #include <fstream>
 #include <map>
@@ -14,14 +15,18 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <chrono>
 
 
 class StackCollector {
     std::regex rx_trace = std::regex("(.*)\\((.+)\\+0x.*\\).*");
-    std::map<std::string, int> *all = nullptr;
+    std::map<std::string, int64_t> *all = nullptr;
     std::mutex map_mutex;
+    const bool record_time = true;
     const int skip_number = 8*1024;
     std::atomic<int> skip_counter{skip_number};
+    std::chrono::high_resolution_clock::time_point last_ev = 
+    	std::chrono::high_resolution_clock::now();
 
 public:
     void add_stackframe() {
@@ -35,7 +40,7 @@ public:
 	skip_counter = new_skip;
 	
 	if (all == nullptr) {
-	  all = new std::map<std::string, int>();
+	  all = new std::map<std::string, int64_t>();
 	}
         void *trace[64];
         char **messages = (char **)NULL;
@@ -61,7 +66,15 @@ public:
         }
 	//const char* str_key = bt.str().c_str();
         //printf("%s\n", str_key);
-        ++((*all)[bt.str()]);
+	if (record_time) {
+            auto now = std::chrono::high_resolution_clock::now();
+	    std::chrono::duration<double> time_span = 
+	        std::chrono::duration_cast<std::chrono::duration<double>>(now - last_ev);
+	    (*all)[bt.str()] += (int64_t) (time_span.count() * 1e6);
+            last_ev = now;
+	} else {
+            ++((*all)[bt.str()]);
+	}
         free(messages);
     }
     
