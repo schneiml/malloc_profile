@@ -5,32 +5,43 @@
 #include <signal.h>
 #include <execinfo.h>
 #include <cxxabi.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <sstream>
 #include <fstream>
 #include <map>
 #include <regex>
 #include <thread>
 #include <mutex>
-#include <sys/types.h>
-#include <unistd.h>
+#include <atomic>
+
 
 class StackCollector {
     std::regex rx_trace = std::regex("(.*)\\((.+)\\+0x.*\\).*");
     std::map<std::string, int> *all = nullptr;
     std::mutex map_mutex;
+    const int skip_number = 8*1024;
+    std::atomic<int> skip_counter{skip_number};
 
 public:
     void add_stackframe() {
-        if (rand() % 1024 != 1) return;
+        if (skip_counter-- != 0) return;
+
 	std::lock_guard<std::mutex> lock(map_mutex);
+
+	// Be very careful here... seems to throw a FPE with %?
+	int new_skip = rand();
+	new_skip = new_skip & (2*skip_number-1);
+	skip_counter = new_skip;
+	
 	if (all == nullptr) {
 	  all = new std::map<std::string, int>();
 	}
-        void *trace[16];
+        void *trace[64];
         char **messages = (char **)NULL;
         int i, trace_size = 0;
 
-        trace_size = backtrace(trace, 16);
+        trace_size = backtrace(trace, 64);
         messages = backtrace_symbols(trace, trace_size);
         
         
@@ -83,6 +94,7 @@ void* malloc(size_t size)
         char *msg;
 
         if (old_malloc == NULL) {
+	  	srand(37);
                 fprintf(stderr, "malloc : wrapping malloc\n");
                 fflush(stderr);
                 // next_ioctl = dlsym((void *) -11, /* RTLD_NEXT, */ "ioctl");
