@@ -6,10 +6,13 @@
 #include <execinfo.h>
 #include <cxxabi.h>
 #include <sstream>
+#include <fstream>
 #include <map>
 #include <regex>
 #include <thread>
 #include <mutex>
+#include <sys/types.h>
+#include <unistd.h>
 
 class StackCollector {
     std::regex rx_trace = std::regex("(.*)\\((.+)\\+0x.*\\).*");
@@ -18,7 +21,7 @@ class StackCollector {
 
 public:
     void add_stackframe() {
-        if (rand() % 1024*128 != 1) return;
+        if (rand() % 1024 != 1) return;
 	std::lock_guard<std::mutex> lock(map_mutex);
 	if (all == nullptr) {
 	  all = new std::map<std::string, int>();
@@ -52,9 +55,14 @@ public:
     }
     
     void dump() {
+	if (!all || all->size() == 0) return;
+        pid_t pid = getpid();
+      	std::ofstream out("malloc.prof." + std::to_string(pid));
         for (auto stack : *all) {
-            printf("%s %d\n", stack.first.c_str(), stack.second);
+            //printf("%s %d\n", stack.first.c_str(), stack.second);
+	    out << stack.first << " " << stack.second << std::endl;
         }
+	delete all;
     }
     
     ~StackCollector() {
