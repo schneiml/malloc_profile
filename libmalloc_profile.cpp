@@ -23,7 +23,7 @@ class StackCollector {
     std::map<std::string, int64_t> *all = nullptr;
     std::mutex map_mutex;
     const bool record_time = true;
-    const int skip_number = 8*1024;
+    const int skip_number = 32*1024;
     std::atomic<int> skip_counter{skip_number};
     std::chrono::high_resolution_clock::time_point last_ev = 
     	std::chrono::high_resolution_clock::now();
@@ -31,6 +31,10 @@ class StackCollector {
 public:
     void add_stackframe() {
         if (skip_counter-- != 0) return;
+	// record time before in the very start to not measure overhead. 
+	// TODO: time is broken for MT anyways...
+        auto start_time = std::chrono::high_resolution_clock::now();
+	
 
 	std::lock_guard<std::mutex> lock(map_mutex);
 
@@ -67,11 +71,10 @@ public:
 	//const char* str_key = bt.str().c_str();
         //printf("%s\n", str_key);
 	if (record_time) {
-            auto now = std::chrono::high_resolution_clock::now();
 	    std::chrono::duration<double> time_span = 
-	        std::chrono::duration_cast<std::chrono::duration<double>>(now - last_ev);
+	        std::chrono::duration_cast<std::chrono::duration<double>>(start_time - last_ev);
 	    (*all)[bt.str()] += (int64_t) (time_span.count() * 1e6);
-            last_ev = now;
+            last_ev = std::chrono::high_resolution_clock::now();
 	} else {
             ++((*all)[bt.str()]);
 	}
