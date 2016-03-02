@@ -13,13 +13,16 @@
 
 class StackCollector {
     std::regex rx_trace = std::regex("(.*)\\((.+)\\+0x.*\\).*");
-    std::map<std::string, int> all;
+    std::map<std::string, int> *all = nullptr;
     std::mutex map_mutex;
 
 public:
     void add_stackframe() {
-        if (rand() % 1024 != 1) return;
+        if (rand() % 1024*128 != 1) return;
 	std::lock_guard<std::mutex> lock(map_mutex);
+	if (all == nullptr) {
+	  all = new std::map<std::string, int>();
+	}
         void *trace[16];
         char **messages = (char **)NULL;
         int i, trace_size = 0;
@@ -42,13 +45,14 @@ public:
                 free(demangled);
             }
         }
-//         printf("%s\n", bt.str().c_str());
-        all[bt.str()]++;
+	//const char* str_key = bt.str().c_str();
+        //printf("%s\n", str_key);
+        ++((*all)[bt.str()]);
         free(messages);
     }
     
     void dump() {
-        for (auto stack : all) {
+        for (auto stack : *all) {
             printf("%s %d\n", stack.first.c_str(), stack.second);
         }
     }
@@ -63,7 +67,6 @@ public:
 static void* (*old_malloc)(size_t size) = NULL;
 static bool in_malloc = false;
 static StackCollector sc;
-
 
 void* malloc(size_t size)
 {
