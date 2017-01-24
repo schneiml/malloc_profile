@@ -16,7 +16,7 @@ Options
 
 `skip_number` average amount of calls to ignore between two stack trace extractions. This will be randomized to get a good sample. At the moment it has to be a power of 2, to avoid strange problems with % (modulo).
 
-`record_time` if `true`, try to estimate time instead of counting malloc calls. This will obviously fail when there are no malloc calls in the code, but it should work as long as there are enough of them. The highest levels of the flame graph will of course be nonsense, but there you better use perf anyways. 
+`record_time` if `true`, try to estimate (wallclock) time instead of counting malloc calls. This will obviously fail when there are no malloc calls in the code, but it should work as long as there are enough of them. The highest levels of the flame graph will be nonsense, but there you better use perf anyways. It does take the overhead into account, so even if your program runs much slower due to a small `skip_number`, the estimation should be fine. (This does not work for things like IO, of course.)
 
 
 The options can be set in the source code.
@@ -24,6 +24,6 @@ The options can be set in the source code.
 TODO
 ----
 
-It should be validated that time estimation correctly handles the measurement overhead. Every stack trace extraction might take 1000 malloc calls itself, so there definitly is a lot of overhead. This also explains the large values for `skip_number`. A better approach might be dumping the addresses and doing the unmanglig later, but as-is it is much easier (and there will be overhead in any case).
+Every stack trace extraction might take 1000 malloc calls itself, so there definitly is a lot of overhead. This also explains the large values for `skip_number`. A better approach might be dumping the addresses and doing the unmanglig later, but as-is it is much easier (and there will be overhead in any case).
 
 Multi-threaded programs might not be handled correctly. It should not crash and the counts should be fine, but time estimation would have to take the thread ID into account.
